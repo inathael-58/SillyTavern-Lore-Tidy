@@ -1,0 +1,168 @@
+/* Lore Tidy — uses SillyTavern theme variables so it follows any theme */
+
+.lt_settings .lt_note { display: block; opacity: 0.7; margin-top: 6px; }
+.lt_settings .menu_button { width: auto; }
+
+/* Sized to the visible viewport from JS; the values below are the fallback. */
+#lt_modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    z-index: 10050;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    box-sizing: border-box;
+    padding: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+             max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    overflow: hidden;
+}
+#lt_modal.lt_busy { cursor: progress; }
+#lt_modal.lt_busy .lt_dialog { pointer-events: none; opacity: 0.8; }
+
+#lt_modal .lt_dialog {
+    margin: auto;
+    box-sizing: border-box;
+    width: min(820px, 100%);
+    max-height: min(920px, 100%);
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--SmartThemeBlurTintColor, #222);
+    backdrop-filter: blur(var(--SmartThemeBlurStrength, 10px));
+    color: var(--SmartThemeBodyColor, #ddd);
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+#lt_modal .lt_head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px 6px;
+    flex-shrink: 0;
+}
+#lt_modal .lt_title { white-space: nowrap; }
+#lt_modal #lt_search { flex: 1; min-width: 0; margin: 0; }
+#lt_modal .lt_close { width: auto; margin: 0; flex-shrink: 0; }
+
+#lt_modal .lt_tabs {
+    display: flex;
+    gap: 4px;
+    padding: 0 12px 6px;
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+}
+#lt_modal .lt_tab { width: auto; margin: 0; padding: 4px 10px; white-space: nowrap; font-size: 0.9em; }
+#lt_modal .lt_tab.lt_active {
+    border-color: var(--SmartThemeQuoteColor, #e18a24);
+    color: var(--SmartThemeQuoteColor, #e18a24);
+    font-weight: 600;
+}
+
+#lt_modal .lt_status {
+    padding: 4px 12px 6px;
+    font-size: 0.8em;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #555);
+}
+#lt_modal .lt_status:empty { padding: 0; }
+
+#lt_modal .lt_body {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px 10px 10px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+#lt_modal .lt_empty { padding: 28px; text-align: center; opacity: 0.7; }
+#lt_modal .lt_dim { opacity: 0.65; font-weight: 400; }
+#lt_modal .lt_warn { color: #e0a030; }
+#lt_modal .lt_link { text-decoration: underline; cursor: pointer; color: var(--SmartThemeQuoteColor, #e18a24); white-space: nowrap; }
+#lt_modal .lt_banner { font-size: 0.85em; padding: 6px 4px; }
+#lt_modal .lt_listhead { padding: 6px 4px 2px; font-size: 0.9em; }
+#lt_modal .lt_listhead .checkbox_label { margin: 0; }
+
+#lt_modal .lt_row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 7px 4px;
+    border-bottom: 1px solid color-mix(in srgb, var(--SmartThemeBorderColor, #555) 45%, transparent);
+}
+#lt_modal .lt_row input[type="checkbox"] { flex-shrink: 0; margin: 0; }
+#lt_modal .lt_main { flex: 1; min-width: 0; cursor: pointer; }
+#lt_modal .lt_name { font-weight: 600; overflow-wrap: anywhere; }
+#lt_modal .lt_note { font-size: 0.75em; font-weight: 400; opacity: 0.7; }
+#lt_modal .lt_badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+#lt_modal .lt_badge {
+    font-size: 0.75em;
+    padding: 1px 7px;
+    border-radius: 8px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+#lt_modal .lt_b_global { border-color: #4ea8de; color: #4ea8de; }
+#lt_modal .lt_b_wip { border-color: #b48ead; color: #b48ead; }
+#lt_modal .lt_b_unused { border-color: #e0a030; color: #e0a030; }
+#lt_modal .lt_acts { display: flex; gap: 4px; flex-shrink: 0; }
+#lt_modal .lt_acts .menu_button { width: auto; margin: 0; padding: 6px 8px; }
+
+#lt_modal .lt_group { margin-top: 8px; }
+#lt_modal .lt_group_head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    position: sticky;
+    top: -4px;
+    z-index: 1;
+    background: var(--SmartThemeBlurTintColor, #222);
+    border-bottom: 1px solid var(--SmartThemeBorderColor, #555);
+}
+#lt_modal .lt_group_head input { margin: 0; }
+#lt_modal .lt_avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+#lt_modal .lt_group_title { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+#lt_modal .lt_group .lt_row { padding-left: 18px; }
+
+#lt_modal .lt_card {
+    margin: 8px 0;
+    padding: 8px 10px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    border-radius: 8px;
+    font-size: 0.9em;
+}
+#lt_modal .lt_card_title { font-weight: 600; margin-bottom: 4px; cursor: default; }
+#lt_modal summary.lt_card_title { cursor: pointer; }
+#lt_modal .lt_card .checkbox_label { margin: 4px 0; }
+#lt_modal .lt_mini {
+    padding: 4px 0;
+    border-bottom: 1px dashed color-mix(in srgb, var(--SmartThemeBorderColor, #555) 45%, transparent);
+    overflow-wrap: anywhere;
+}
+
+#lt_modal .lt_foot {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    border-top: 1px solid var(--SmartThemeBorderColor, #555);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+#lt_modal .lt_selinfo { font-size: 0.9em; }
+#lt_modal .lt_btns { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; margin-top: 4px; }
+#lt_modal .lt_btns .menu_button { width: auto; margin: 0; padding: 5px 12px; white-space: nowrap; }
+#lt_modal .menu_button.disabled { opacity: 0.4; pointer-events: none; }
+#lt_modal .lt_confirm { width: 100%; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px; }
+#lt_modal .lt_confirm_list { max-height: 6.5em; overflow-y: auto; opacity: 0.85; overflow-wrap: anywhere; }
+#lt_modal .lt_btns .menu_button i { margin-right: 5px; }
