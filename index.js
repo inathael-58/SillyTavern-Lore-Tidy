@@ -13,6 +13,7 @@ import {
     world_info,
     deleteWorldInfo,
     openWorldInfoEditor,
+    assignLorebookToChat,
     loadWorldInfo,
 } from '../../../world-info.js';
 
@@ -856,6 +857,189 @@ function removeFromGlobal(names) {
     $sel.val(vals).trigger('change');
 }
 
+// ---------------------------------------------------------------- World Info panel: active book lists
+//
+// Under "Active World(s) for all chats": the Global books as named chips (on mobile SillyTavern
+// shows a native <select> that only says "2 Items"). Below it, "Active World(s) for this chat":
+// every book that applies to the chat that's open — Chat Lore, the character's primary and extra
+// books (every member in a group), and the persona's book.
+
+const PANEL_DEFAULTS = Object.freeze({ showGlobalChips: true, showChatPanel: true });
+
+function panelSettings() {
+    const ext = ctx().extensionSettings;
+    ext[MODULE] ??= {};
+    const s = ext[MODULE];
+    for (const [k, v] of Object.entries(PANEL_DEFAULTS)) if (s[k] === undefined) s[k] = v;
+    return s;
+}
+
+/** Books that apply to the chat that's open, with where each comes from. */
+function activeForThisChat() {
+    const c = ctx();
+    /** @type {{book: string, kind: 'chat'|'primary'|'extra'|'persona', who?: string}[]} */
+    const out = [];
+    if (!c.chatId) return { hasChat: false, items: out, wip: [] };
+
+    const chatBook = c.chatMetadata?.world_info;
+    if (typeof chatBook === 'string' && chatBook) out.push({ book: chatBook, kind: 'chat' });
+
+    /** @type {any[]} */
+    let members = [];
+    if (c.groupId) {
+        const group = (c.groups || []).find(g => String(g.id) === String(c.groupId));
+        const avatars = new Set(group?.members ?? []);
+        members = (c.characters || []).filter(ch => avatars.has(ch.avatar));
+    } else if (c.characterId !== undefined && c.characterId !== null && c.characters?.[c.characterId]) {
+        members = [c.characters[c.characterId]];
+    }
+    const many = members.length > 1;
+    for (const ch of members) {
+        const who = many ? ch.name : undefined;
+        const primary = ch.data?.extensions?.world;
+        if (primary) out.push({ book: primary, kind: 'primary', who });
+        const extra = world_info?.charLore?.find(e => e.name === avatarStem(ch.avatar))?.extraBooks ?? [];
+        for (const b of extra) out.push({ book: b, kind: 'extra', who });
+    }
+
+    const personaBook = c.powerUserSettings?.persona_description_lorebook;
+    if (personaBook) out.push({ book: personaBook, kind: 'persona' });
+
+    const wip = (wipSettings()?.chatLorebooks?.[String(c.chatId)] ?? []).filter(b => b && b !== chatBook);
+    return { hasChat: true, items: out, wip };
+}
+
+const KIND_LABEL = { chat: 'Chat Lore', primary: 'เล่มหลัก', extra: 'เล่มเสริม', persona: 'Persona' };
+const KIND_ICON = { chat: 'fa-comments', primary: 'fa-user', extra: 'fa-user-plus', persona: 'fa-masks-theater' };
+
+function chipHtml(book, { icon = '', label = '', removable = false, removeTitle = '', exists = true } = {}) {
+    return `
+        <span class="lt_chip ${exists ? '' : 'lt_chip_missing'}" data-book="${escapeHtml(book)}">
+            <span class="lt_chip_open" title="${exists ? 'เปิดในตัวแก้ไข' : 'ไม่มีไฟล์ lorebook นี้แล้ว'}">
+                ${icon ? `<i class="fa-solid ${icon}"></i>` : ''}
+                <span class="lt_chip_name">${escapeHtml(book)}</span>
+                ${label ? `<span class="lt_chip_kind">${escapeHtml(label)}</span>` : ''}
+            </span>
+            ${removable ? `<i class="fa-solid fa-xmark lt_chip_x" title="${escapeHtml(removeTitle)}"></i>` : ''}
+        </span>`;
+}
+
+let panelTimer = null;
+function renderPanelSoon() {
+    clearTimeout(panelTimer);
+    panelTimer = setTimeout(renderPanel, 60);
+}
+
+function renderPanel() {
+    const host = document.getElementById('WIMultiSelector');
+    if (!host) return;
+    const s = panelSettings();
+    const exists = new Set(bookNames());
+
+    // --- Global chips (skipped when select2 already shows names, i.e. on desktop)
+    let g = document.getElementById('lt_global_chips');
+    const usesSelect2 = !!$('#world_info').data('select2');
+    if (!s.showGlobalChips || usesSelect2) {
+        g?.remove();
+    } else {
+        if (!g) {
+            g = document.createElement('div');
+            g.id = 'lt_global_chips';
+            g.className = 'lt_chips';
+            const range = host.querySelector('.range-block-range') ?? host;
+            range.after(g);
+        }
+        const globals = [...(selected_world_info || [])];
+        g.innerHTML = globals.length
+            ? globals.map(b => chipHtml(b, { removable: true, removeTitle: 'ถอดออกจาก Global', exists: exists.has(b) })).join('')
+            : '<span class="lt_chips_empty">ไม่มีเล่มที่เปิดเป็น Global</span>';
+        g.querySelectorAll('.lt_chip_x').forEach(x => x.addEventListener('click', e => {
+            e.stopPropagation();
+            removeFromGlobal([x.closest('.lt_chip').dataset.book]);
+            renderPanelSoon();
+        }));
+        wireChipOpen(g);
+    }
+
+    // --- Active World(s) for this chat
+    let p = document.getElementById('lt_chat_panel');
+    if (!s.showChatPanel) {
+        p?.remove();
+        return;
+    }
+    if (!p) {
+        p = document.createElement('div');
+        p.id = 'lt_chat_panel';
+        host.appendChild(p);
+    }
+    const { hasChat, items, wip } = activeForThisChat();
+    const chatBook = items.find(i => i.kind === 'chat');
+    let body;
+    if (!hasChat) {
+        body = '<span class="lt_chips_empty">ยังไม่ได้เปิดแชท</span>';
+    } else {
+        body = items.length
+            ? items.map(i => chipHtml(i.book, {
+                icon: KIND_ICON[i.kind],
+                label: i.who ? `${KIND_LABEL[i.kind]} · ${i.who}` : KIND_LABEL[i.kind],
+                removable: i.kind === 'chat',
+                removeTitle: 'เลิกผูก Chat Lore กับแชทนี้',
+                exists: exists.has(i.book),
+            })).join('')
+            : '<span class="lt_chips_empty">ไม่มี lorebook ผูกกับแชทนี้ (นอกจาก Global)</span>';
+    }
+    p.innerHTML = `
+        <div class="range-block-title justifyLeft lt_chat_title">
+            <small>Active World(s) for this chat</small>
+            ${hasChat ? `<span class="lt_chat_bind menu_button fa-solid ${chatBook ? 'fa-pen' : 'fa-link'}" title="${chatBook ? 'เปลี่ยน Chat Lore ของแชทนี้' : 'ผูก Chat Lore กับแชทนี้'}"></span>` : ''}
+        </div>
+        <div class="lt_chips">${body}</div>
+        ${wip.length ? `<div class="lt_chips_note"><i class="fa-solid fa-puzzle-piece"></i> เคยผูกผ่าน WorldInfoPlus: ${wip.map(escapeHtml).join(', ')} · <span class="lt_link lt_goto_tools">ย้ายใน Lore Tidy</span></div>` : ''}`;
+
+    p.querySelector('.lt_chat_bind')?.addEventListener('click', async () => {
+        await assignLorebookToChat({ shiftKey: true, altKey: false });
+        renderPanelSoon();
+    });
+    p.querySelector('.lt_chip_x')?.addEventListener('click', async e => {
+        e.stopPropagation();
+        const c = ctx();
+        delete c.chatMetadata.world_info;
+        $('.chat_lorebook_button').removeClass('world_set');
+        await c.saveMetadata();
+        renderPanelSoon();
+    });
+    p.querySelector('.lt_goto_tools')?.addEventListener('click', () => { ui.tab = 'tools'; openModal(); });
+    wireChipOpen(p);
+}
+
+function wireChipOpen(root) {
+    root.querySelectorAll('.lt_chip:not(.lt_chip_missing) .lt_chip_open').forEach(el => el.addEventListener('click', () => {
+        openWorldInfoEditor(el.closest('.lt_chip').dataset.book);
+    }));
+}
+
+function initPanel() {
+    renderPanel();
+    const { eventSource, event_types: E } = ctx();
+    for (const ev of [E.CHAT_CHANGED, E.WORLDINFO_SETTINGS_UPDATED, E.WORLDINFO_UPDATED, E.SETTINGS_UPDATED,
+        E.CHARACTER_EDITED, E.CHARACTER_PAGE_LOADED, E.PERSONA_CHANGED, E.GROUP_UPDATED, E.APP_READY].filter(Boolean)) {
+        eventSource.on(ev, renderPanelSoon);
+    }
+    $(document).on('change', '#world_info', renderPanelSoon);
+    // SillyTavern flips `world_set` on these buttons whenever chat / persona / character lore changes.
+    const watch = new MutationObserver(renderPanelSoon);
+    const observeButtons = () => {
+        document.querySelectorAll('.chat_lorebook_button, #persona_lore_button, #world_button').forEach(el => {
+            if (el.dataset.ltWatched) return;
+            el.dataset.ltWatched = '1';
+            watch.observe(el, { attributes: true, attributeFilter: ['class'] });
+        });
+    };
+    observeButtons();
+    // Opening the World Info drawer always shows fresh lists.
+    document.getElementById('WIDrawerIcon')?.addEventListener('click', () => { observeButtons(); renderPanelSoon(); });
+}
+
 // ---------------------------------------------------------------- entry points
 
 function injectButton() {
@@ -883,10 +1067,19 @@ function renderSettings() {
             <div class="inline-drawer-content">
                 <div class="menu_button menu_button_icon" id="lt_settings_open"><i class="fa-solid fa-broom"></i> เปิด Lore Tidy</div>
                 <small class="lt_note">เปิดจากปุ่มไม้กวาดในแผง World Info หรือพิมพ์ <code>/loretidy</code> ก็ได้</small>
+                <hr class="sysHR">
+                <label class="checkbox_label" title="บนมือถือ ช่อง Global ขึ้นแค่ว่า &quot;2 Items&quot; ตัวเลือกนี้จะแสดงชื่อเล่มใต้ช่องให้เห็นเลย (บนคอมช่องนี้แสดงชื่ออยู่แล้ว จึงไม่แสดงซ้ำ)"><input type="checkbox" id="lt_show_global"> แสดงชื่อเล่ม Global ใต้ช่อง Active World(s) for all chats</label>
+                <label class="checkbox_label"><input type="checkbox" id="lt_show_chat"> แสดงส่วน Active World(s) for this chat</label>
             </div>
         </div>
     </div>`);
     document.getElementById('lt_settings_open').addEventListener('click', openModal);
+    const ps = panelSettings();
+    for (const [id, key] of [['lt_show_global', 'showGlobalChips'], ['lt_show_chat', 'showChatPanel']]) {
+        const el = document.getElementById(id);
+        el.checked = !!ps[key];
+        el.addEventListener('change', () => { ps[key] = el.checked; ctx().saveSettingsDebounced(); renderPanel(); });
+    }
 }
 
 function registerCommand() {
@@ -904,6 +1097,7 @@ function init() {
     injectButton();
     renderSettings();
     registerCommand();
+    initPanel();
     const { eventSource, event_types: E } = ctx();
     // Chats or characters changed: the next open rescans chat lore.
     for (const ev of [E.CHAT_CHANGED, E.CHAT_DELETED, E.CHARACTER_DELETED, E.CHARACTER_EDITED, E.CHARACTER_RENAMED].filter(Boolean)) {

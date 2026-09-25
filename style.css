@@ -166,3 +166,52 @@
 #lt_modal .lt_confirm { width: 100%; font-size: 0.9em; display: flex; flex-direction: column; gap: 4px; }
 #lt_modal .lt_confirm_list { max-height: 6.5em; overflow-y: auto; opacity: 0.85; overflow-wrap: anywhere; }
 #lt_modal .lt_btns .menu_button i { margin-right: 5px; }
+
+/* ---------------------------------------------------------------- World Info panel: active book chips */
+#WIMultiSelector .lt_chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 6px;
+    align-items: center;
+}
+#WIMultiSelector .lt_chips_empty { font-size: 0.85em; opacity: 0.6; }
+#WIMultiSelector .lt_chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 3px 9px;
+    border-radius: 14px;
+    border: 1px solid var(--SmartThemeBorderColor, #555);
+    background: color-mix(in srgb, var(--SmartThemeBorderColor, #555) 22%, transparent);
+    font-size: 0.9em;
+    line-height: 1.35;
+}
+#WIMultiSelector .lt_chip_open {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 0;
+    cursor: pointer;
+}
+#WIMultiSelector .lt_chip_open > i { font-size: 0.85em; opacity: 0.75; }
+#WIMultiSelector .lt_chip_name { overflow-wrap: anywhere; }
+#WIMultiSelector .lt_chip_kind { font-size: 0.78em; opacity: 0.6; white-space: nowrap; }
+#WIMultiSelector .lt_chip_x {
+    cursor: pointer;
+    opacity: 0.6;
+    padding: 2px 0 2px 2px;
+}
+#WIMultiSelector .lt_chip_x:hover { opacity: 1; color: var(--warning, #e0a030); }
+#WIMultiSelector .lt_chip_missing { border-style: dashed; opacity: 0.7; }
+#WIMultiSelector .lt_chip_missing .lt_chip_name { text-decoration: line-through; }
+#WIMultiSelector .lt_chip_missing .lt_chip_open { cursor: default; }
+
+#lt_chat_panel { margin-top: 12px; width: 100%; }
+#lt_chat_panel .lt_chat_title { display: flex; align-items: center; gap: 6px; }
+#lt_chat_panel .lt_chat_bind { width: auto; margin: 0; padding: 3px 7px; font-size: 0.8em; }
+#lt_chat_panel .lt_chips_note { font-size: 0.8em; opacity: 0.8; margin-top: 5px; }
+#lt_chat_panel .lt_link { text-decoration: underline; cursor: pointer; color: var(--SmartThemeQuoteColor, #e18a24); }
+#WIMultiSelector:has(#lt_global_chips, #lt_chat_panel) { flex-wrap: wrap; }
+#lt_global_chips, #lt_chat_panel { flex: 1 1 100%; width: 100%; box-sizing: border-box; }
