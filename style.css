@@ -215,3 +215,8 @@
 #lt_chat_panel .lt_link { text-decoration: underline; cursor: pointer; color: var(--SmartThemeQuoteColor, #e18a24); }
 #WIMultiSelector:has(#lt_global_chips, #lt_chat_panel) { flex-wrap: wrap; }
 #lt_global_chips, #lt_chat_panel { flex: 1 1 100%; width: 100%; box-sizing: border-box; }
+
+.lt_version {
+    opacity: 0.6;
+    font-weight: normal;
+}

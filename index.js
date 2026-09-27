@@ -19,6 +19,8 @@ import {
 
 const MODULE = 'lore_tidy';
 const LOG = '[LoreTidy]';
+const VERSION = '1.2.0'; // keep in sync with manifest.json
+const BASE_URL = new URL('.', import.meta.url);
 const WIP_MODULE = 'world-info-plus';
 const SCAN_CONCURRENCY = 3;
 
@@ -1061,7 +1063,7 @@ function renderSettings() {
     <div id="lt_settings" class="lt_settings">
         <div class="inline-drawer">
             <div class="inline-drawer-toggle inline-drawer-header">
-                <b>Lore Tidy</b>
+                <b>Lore Tidy <small class="lt_version">v${VERSION}</small></b>
                 <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
             </div>
             <div class="inline-drawer-content">
@@ -1092,6 +1094,46 @@ function registerCommand() {
     }));
 }
 
+// ---------------------------------------------------------------- stale-code check
+//
+// SillyTavern loads extension files by a fixed URL, and a home-screen web app
+// on iOS rarely does a real reload, so after "Update" the old code can keep
+// running for a long time. Compare with the manifest on the server; if it is
+// newer, refresh the cached files explicitly and reload.
+
+let versionCheckedAt = 0;
+let versionToastShown = false;
+
+async function checkForNewVersion() {
+    if (versionToastShown || Date.now() - versionCheckedAt < 10 * 60_000) return;
+    versionCheckedAt = Date.now();
+    let remote;
+    try {
+        const res = await fetch(new URL('manifest.json', BASE_URL), { cache: 'no-store' });
+        if (!res.ok) return;
+        remote = String((await res.json())?.version ?? '');
+    } catch { return; }
+    if (!remote || remote === VERSION) return;
+    versionToastShown = true;
+    globalThis.toastr?.info(`ติดตั้ง v${escapeHtml(remote)} ไว้แล้ว แต่หน้านี้ยังรัน v${VERSION} อยู่<br>แตะที่นี่เพื่อโหลดเวอร์ชันใหม่`, 'Lore Tidy', {
+        timeOut: 0, extendedTimeOut: 0, closeButton: true, escapeHtml: false,
+        onclick: () => reloadWithFreshFiles(),
+    });
+}
+
+async function reloadWithFreshFiles() {
+    try {
+        // cache: 'reload' fetches from the server and overwrites the browser's cached copy,
+        // so the page reload below picks up the new files.
+        await Promise.all(['index.js', 'style.css', 'manifest.json'].map(f =>
+            fetch(new URL(f, BASE_URL), { cache: 'reload' }).catch(() => null)));
+    } finally {
+        location.reload();
+    }
+}
+
+// ---------------------------------------------------------------- init
+
 function init() {
     ctx().extensionSettings[MODULE] ??= {};
     injectButton();
@@ -1109,9 +1151,11 @@ function init() {
     for (const ev of [E.WORLDINFO_SETTINGS_UPDATED, E.CHAT_CHANGED, E.WORLDINFO_UPDATED].filter(Boolean)) {
         eventSource.on(ev, () => { if (!ui.busy) refresh(); });
     }
-    console.log(LOG, 'loaded');
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForNewVersion(); });
+    setTimeout(checkForNewVersion, 3000);
+    console.log(LOG, 'loaded', `v${VERSION}`);
 }
 
-globalThis.LoreTidy = { open: openModal, buildModel, scanChats, makeZip, get chatScan() { return chatScan; } };
+globalThis.LoreTidy = { VERSION, checkForNewVersion, reloadWithFreshFiles, open: openModal, buildModel, scanChats, makeZip, get chatScan() { return chatScan; } };
 
 if (typeof jQuery === 'function') jQuery(init); else init();
